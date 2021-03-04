@@ -7,7 +7,6 @@
 #define ANIM_SIZE 512 // number of bytes in array, minimize for adequate firmware size, max is 1024
 
 uint32_t anim_timer = 0;
-uint32_t anim_sleep = 0;
 uint8_t curr_anim_frame = 0;
 
 // OLED designer: https://joric.github.io/qle/
@@ -48,16 +47,8 @@ void animation_phase(void) {
 // Images credit j-inc(/James Incandenza) and pixelbenny. Credit to obosob for initial animation approach.
 // https://github.com/qmk/qmk_firmware/blob/master/keyboards/kyria/keymaps/j-inc/keymap.c
 void render_bongo_cat(void) {
-  if (get_current_wpm() != 000) {
-    if (timer_elapsed32(anim_timer) > ANIM_FRAME_DURATION) {
-      anim_timer = timer_read32();
-      animation_phase();
-    }
-    anim_sleep = timer_read32();
-  } else {
-    if (timer_elapsed32(anim_timer) > ANIM_FRAME_DURATION) {
-      anim_timer = timer_read32();
-      animation_phase();
-    }
+  if (timer_elapsed32(anim_timer) > ANIM_FRAME_DURATION) {
+    anim_timer = timer_read32();
+    animation_phase();
   }
 }

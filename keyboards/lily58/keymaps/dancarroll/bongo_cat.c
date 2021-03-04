@@ -46,6 +46,7 @@ void animation_phase(void) {
 }
 
 // Images credit j-inc(/James Incandenza) and pixelbenny. Credit to obosob for initial animation approach.
+// https://github.com/qmk/qmk_firmware/blob/master/keyboards/kyria/keymaps/j-inc/keymap.c
 void render_bongo_cat(void) {
   if (get_current_wpm() != 000) {
     if (timer_elapsed32(anim_timer) > ANIM_FRAME_DURATION) {

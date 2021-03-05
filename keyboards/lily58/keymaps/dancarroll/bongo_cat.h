@@ -1,4 +1,5 @@
 #pragma once
 
-// Images credit j-inc(/James Incandenza) and pixelbenny. Credit to obosob for initial animation approach.
+// Renders Bongo Cat animation suitable for QMK-compatible,
+// 128x32 OLED screens.
 void render_bongo_cat(void);

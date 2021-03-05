@@ -1,18 +1,38 @@
+/* Copyright 2021 github.com/dancarroll
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+// Credits:
+// - github.com/j-inc (James Incandenza): code and image arrays that served
+//   as the baseline for this simplified library.
+// - @pixelbenny: provided the art that j-inc used when generating the
+//   baseline code.
+// - github.com/obosob: credited by j-inc as inspiration for the animation
+//   approach used here.
+
 #include QMK_KEYBOARD_H
 
-#define TAP_FRAMES 2
-#define READY_SPEED 10
-#define TAP_SPEED 20 // above this wpm value typing animation to trigger
+#define TAP_FRAMES 2 // total number of tapping animation frames
+#define READY_SPEED 10 // above this speed, switch from waiting to ready
+#define TAP_SPEED 20 // above this speed, switch from ready to animation
 
-#define ANIM_FRAME_DURATION 200 // how long each frame lasts in ms
-#define ANIM_SIZE 512 // number of bytes in array, minimize for adequate firmware size, max is 1024
+#define ANIM_FRAME_DURATION 200 // how long each animation frame lasts in ms
+#define ANIM_SIZE 512 // number of pixels in 128x32 display
 
-uint32_t anim_timer = 0;
-uint8_t curr_anim_frame = 0;
-
-// OLED designer: https://joric.github.io/qle/
-
-// Edited bongo cat, first frame
+// Two animation frames, which show Bongo Cat alternating between tapping with
+// each paw.
 static const char PROGMEM animation_frames[TAP_FRAMES][ANIM_SIZE] = {
     {
         0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,128,128,  0,  0,  0,  0,  0,128, 64, 64, 32, 32, 32, 32, 16, 16, 16, 16,  8,  4,  2,  1,  1,  2, 12, 48, 64,128,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,128,128,128,
@@ -28,12 +48,15 @@ static const char PROGMEM animation_frames[TAP_FRAMES][ANIM_SIZE] = {
     }
 };
 
+// Ready frame that shows Bongo Cat with both paws in the air.
 static const char PROGMEM ready_frame[ANIM_SIZE] = {
         0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,128,128,  0,  0,  0,  0,  0,128, 64, 64, 32, 32, 32, 32, 16, 16, 16, 16,  8,  4,  2,  1,  1,  2, 12, 48, 64,128,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,128,128,128,
         0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 30,225,  0,  0,  1,  1,  2,  2,129,128,128,  0,  0,128,128,  0,  0,  0,  0,  0,  0,  0,  0,  0,128,  0, 48, 48,  0,  0,  1,225, 26,  6,  9, 49, 53,  1,138,124,  0,  0,128,128,128,128, 64, 64, 64, 64, 32, 32, 32, 32, 16, 16, 16, 16,  8,  8,  8,  8,  8,  4,  4,  4,  4,  4,  2,  2,  2,  2,  1,  1,  1,  1,  0,  0,  0, 
         0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,128,112, 12,  3,  0,  0, 24,  6,  5,152,153,132,195,124, 65, 65, 64, 64, 32, 33, 34, 18, 17, 17, 17,  9,  8,  8,  8,  8,  4,  4,  4,  4,  4,  4,  2,  2,  2,  1,  1,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 
         0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,128,128,128,128,128, 64, 64, 64, 64, 32, 32, 32, 32, 16, 16, 16, 16, 16,  8,  8,  8,  8,  8,  4,  4,  4,  4,  4,  2,  3,  2,  2,  1,  1,  1,  1,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
     };
+	
+// Waiting frame that shows Bongo Cat with both paws on the table.
 static const char PROGMEM waiting_frame[] = {
         0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,128,128,  0,  0,  0,  0,  0,128, 64, 64, 32, 32, 32, 32, 16, 16, 16, 16,  8,  4,  2,  1,  1,  2, 12, 48, 64,128,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,128,128,128,
         0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 30,225,  0,  0,  1,  1,  2,  2,  1,  0,  0,  0,  0,128,128,  0,  0,  0,  0,  0,  0,  0,  0,  0,128,  0, 48, 48,  0,  0,  1,  1,  2,  4,  8, 16, 32, 64,128,  0,  0,  0,128,128,128,128, 64, 64, 64, 64, 32, 32, 32, 32, 16, 16, 16, 16,  8,  8,  8,  8,  8,  4,  4,  4,  4,  4,  2,  2,  2,  2,  1,  1,  1,  1,  0,  0,  0, 
@@ -41,23 +64,20 @@ static const char PROGMEM waiting_frame[] = {
         0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,128,128,128,128,128, 64, 64, 64, 64, 32, 32, 32, 32, 16, 16, 16, 16, 16,  8,  8,  8,  8,  8,  4,  4,  4,  4,  4,  2,  3,  2,  2,  1,  1,  1,  1,  1,  1,  2,  2,  4,  4,  8,  8,  8,  8,  8,  7,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
     };
 
-// assumes 1 frame prep stage
-void animation_phase(void) {
-  if (get_current_wpm() < READY_SPEED) {
-    oled_write_raw_P(ready_frame, ANIM_SIZE);
-  } else if (get_current_wpm() >= TAP_SPEED) {
-    curr_anim_frame = (curr_anim_frame + 1) % TAP_FRAMES;
-    oled_write_raw_P(animation_frames[abs((TAP_FRAMES - 1) - curr_anim_frame)], ANIM_SIZE);
-  } else {
-	oled_write_raw_P(waiting_frame, ANIM_SIZE);
-  }
-}
+uint32_t anim_timer = 0;
+uint8_t curr_anim_frame = 0;
 
-// Images credit j-inc(/James Incandenza) and pixelbenny. Credit to obosob for initial animation approach.
-// https://github.com/qmk/qmk_firmware/blob/master/keyboards/kyria/keymaps/j-inc/keymap.c
 void render_bongo_cat(void) {
   if (timer_elapsed32(anim_timer) > ANIM_FRAME_DURATION) {
     anim_timer = timer_read32();
-    animation_phase();
+	
+    if (get_current_wpm() < READY_SPEED) {
+      oled_write_raw_P(ready_frame, ANIM_SIZE);
+    } else if (get_current_wpm() >= TAP_SPEED) {
+      curr_anim_frame = (curr_anim_frame + 1) % TAP_FRAMES;
+      oled_write_raw_P(animation_frames[abs((TAP_FRAMES - 1) - curr_anim_frame)], ANIM_SIZE);
+    } else {
+	  oled_write_raw_P(waiting_frame, ANIM_SIZE);
+    }
   }
 }
